@@ -1,0 +1,1252 @@
+{
+  "name": "2 - Telegram Start",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message",
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        384
+      ],
+      "id": "da692c86-7fd9-468d-8e94-18fdefbfc1a9",
+      "name": "Telegram Trigger",
+      "webhookId": "968c0d32-5e2d-44b7-a2b6-5725f95867fd"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "febbf530-71cc-48c4-9328-0b8e243f69fd",
+              "name": "chat_id",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            },
+            {
+              "id": "b3b78aca-67d6-49cb-8d91-79655a05b4c1",
+              "name": "first_name",
+              "value": "={{ $json.message.from.first_name }}",
+              "type": "string"
+            },
+            {
+              "id": "248e3c75-b6e9-4bf6-b550-092a068cd634",
+              "name": "booking_id",
+              "value": "={{ $json.message.text.replace('/start', '').trim() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "6ac48011-a2d1-4561-8dc9-7b7dc1f4cb6c",
+      "name": "Extract Data"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "bookings",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Extract Data').item.json.booking_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        0
+      ],
+      "id": "5c310b6a-7e08-4a41-9f09-35ffcd5d68fb",
+      "name": "Find Booking"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "guests",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.guest_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "telegram_chat_id",
+              "fieldValue": "={{ $('Extract Data').item.json.chat_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        896,
+        0
+      ],
+      "id": "f933dacf-433d-447d-9ec7-16c6d3faa24d",
+      "name": "Save Chat ID"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Data').item.json.chat_id }}",
+        "text": "=Welcome, {{ $('Extract Data').item.json.first_name }}! 🏨 Your booking is confirmed. Check-in: {{ $('Find Booking').item.json.check_in }} Check-out: {{ $('Find Booking').item.json.check_out }} I'm your hotel concierge. Ask me anything about your stay, and I'll send your check-in details before you arrive.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "cb5761f7-f1dc-46dd-bb56-8d191ab0eb76",
+      "name": "Send a text message",
+      "webhookId": "b5e1e392-6f88-4668-bd96-c66cac019fab"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "bookings",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Extract Data').item.json.booking_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "welcome_sent",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        0
+      ],
+      "id": "49a163af-13db-4f0b-a360-e3d8e19ea7bd",
+      "name": "Mark Welcome Sent"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ ($json.callback_query?.data || '').startsWith('checkin:') }}",
+                    "rightValue": "={{ !!$json.message }}",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "5c68eb57-a4e1-419e-9856-adfe270fbcb6"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=checkin"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f08835af-0255-4975-b271-33d0241e5e2b",
+                    "leftValue": "={{ ($json.message?.text || '').startsWith('/start') }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "start"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f8460139-f274-41b5-800c-b167df157f4b",
+                    "leftValue": "={{ !!$json.message }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "chat"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7b63be3f-1a15-42fb-9f96-2659e295d8cb",
+                    "leftValue": "={{ ($json.callback_query?.data || '').startsWith('late:') || ($json.callback_query?.data || '').startsWith('skip:') }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "upsell"
+            }
+          ]
+        },
+        "options": {
+          "allMatchingOutputs": false
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        352
+      ],
+      "id": "2077040a-05aa-4c6f-b55f-3d8058b6b169",
+      "name": "Route Update"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $json.callback_id }}",
+        "additionalFields": {
+          "text": "Getting your door code ready... 🔑"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        192
+      ],
+      "id": "3c050ff1-f59b-4d9b-a063-cf8c7e4b0621",
+      "name": "Answer Tap",
+      "webhookId": "35971d8f-028e-498d-b18f-338313ec9235"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "bookings",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Extract Button').item.json.booking_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        896,
+        192
+      ],
+      "id": "2256349e-2dc1-4093-b4b2-0e1e8a84bd7c",
+      "name": "Get Booking"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a4578184-0953-4e13-a136-c61282d24639",
+              "name": "booking_id",
+              "value": "={{ $json.callback_query.data.replace('checkin:', '') }}",
+              "type": "string"
+            },
+            {
+              "id": "fd0656f7-4eb9-413a-8a19-3f973ba2bf5c",
+              "name": "chat_id",
+              "value": "={{ $json.callback_query.message.chat.id }}",
+              "type": "string"
+            },
+            {
+              "id": "15312b43-2266-4bf6-9625-49f96d3d4622",
+              "name": "callback_id",
+              "value": "={{ $json.callback_query.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        192
+      ],
+      "id": "e35e0b72-05e9-4bfa-89c1-0a159e83195e",
+      "name": "Extract Button"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3eb06747-2e75-4991-8001-e0fdf1a1f748",
+              "name": "booking_id",
+              "value": "={{ $json.id.toString().trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "fefd10a0-f5f9-4183-bf95-2602067658fc",
+              "name": "pin",
+              "value": "={{ Math.floor(100000 + Math.random() * 900000).toString() }}",
+              "type": "string"
+            },
+            {
+              "id": "0e71e056-a13d-4ea0-af5e-7c5954e9b9a0",
+              "name": "valid_from",
+              "value": "={{ $json.check_in }}T14:00:00Z",
+              "type": "string"
+            },
+            {
+              "id": "4a2ab3ce-f9f1-452c-9229-7dd79e2bd7ce",
+              "name": "valid_to",
+              "value": "={{ $json.check_out }}T11:00:00Z",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1184,
+        192
+      ],
+      "id": "be3d0913-2e6c-4ab8-884b-b5496fe9c0a3",
+      "name": "Generate PIN"
+    },
+    {
+      "parameters": {
+        "tableId": "door_codes",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "booking_id",
+              "fieldValue": "={{ $json.booking_id.toString().trim() }}"
+            },
+            {
+              "fieldId": "pin",
+              "fieldValue": "={{ $json.pin }}"
+            },
+            {
+              "fieldId": "valid_from",
+              "fieldValue": "={{ $json.valid_from }}"
+            },
+            {
+              "fieldId": "valid_to",
+              "fieldValue": "={{ $json.valid_to }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        192
+      ],
+      "id": "0bf4f47f-8b0f-4be7-bc72-484db8ba8bd9",
+      "name": "Save PIN"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Button').first().json.chat_id }}",
+        "text": "=You're all set! 🔑 Your door code is: {{ $('Generate PIN').item.json.pin }} It works from 2 PM on {{ $('Get Booking').item.json.check_in }} until 11 AM on {{ $('Get Booking').item.json.check_out }}. Enter the code on the keypad and press #. Enjoy your stay!",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1696,
+        192
+      ],
+      "id": "ae0d1406-22a4-46ec-a97c-95f4f9d75c4a",
+      "name": "Send PIN",
+      "webhookId": "accc8c23-ec0a-4fcf-bf9a-c54c2113983b",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "guests",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telegram_chat_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Route Update').item.json.message.chat.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        448,
+        480
+      ],
+      "id": "15319d79-eaa8-4058-be12-e35c4a07a5d6",
+      "name": "Find Guest"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "guest_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "inbound"
+            },
+            {
+              "fieldId": "channel",
+              "fieldValue": "telegram"
+            },
+            {
+              "fieldId": "body",
+              "fieldValue": "={{ $('Route Update').item.json.message.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        480
+      ],
+      "id": "1ae4de99-ab0e-4360-9136-c77b6e3a2368",
+      "name": "Log Inbound"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a503f537-438a-40d4-89b5-92c56031041a",
+              "name": "hotel_info",
+              "value": "You are the friendly concierge of a 5-room boutique hotel. Answer guests briefly and warmly, in 1-3 sentences, using only the facts below. FACTS: - Check-in from 2 PM, check-out by 11 AM. - Breakfast is served 7:00-10:00 AM in the courtyard, included in the room price. - Wifi network: BoutiqueGuest, password: welcome2026. - Reception is unstaffed. Door codes are sent by this bot. - Late checkout (until 1 PM) can be requested through this chat. If the answer is not in the facts, or the guest is upset, reports a problem, or asks to speak to a person, reply with exactly the single word ESCALATE and nothing else. Never invent information.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        896,
+        480
+      ],
+      "id": "678b33a7-ada7-4b7f-95da-25736ccf2d32",
+      "name": "Hotel Info"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.6-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.6-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $('Route Update').item.json.message.text }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "systemMessage": "={{ $('Hotel Info').item.json.hotel_info }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        480
+      ],
+      "id": "36bf4959-42fb-4afa-af90-b9c3fb793b03",
+      "name": "AI Reply"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Route Update').item.json.message.chat.id }}",
+        "text": "={{ $json.content.parts[0].text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1696,
+        384
+      ],
+      "id": "809af575-70d6-4a38-9bd9-087ff8a642a1",
+      "name": "Send Reply",
+      "webhookId": "ac210d42-f7ff-43c7-a8e4-797b6cc572cc"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "guest_id",
+              "fieldValue": "={{ $('Find Guest').first().json.id }}"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "outbound"
+            },
+            {
+              "fieldId": "channel",
+              "fieldValue": "telegram"
+            },
+            {
+              "fieldId": "body",
+              "fieldValue": "={{ $('AI Reply').item.json.content.parts[0].text }}"
+            },
+            {
+              "fieldId": "handled_by",
+              "fieldValue": "ai"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        384
+      ],
+      "id": "309444ba-dc7c-46f9-957f-129a4157e927",
+      "name": "Log Outbound"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b358c364-c466-496b-83ba-fc0da350faf5",
+              "leftValue": "={{ $json.content.parts[0].text }}",
+              "rightValue": "ESCALATE",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1472,
+        480
+      ],
+      "id": "569f1c83-4b93-4798-9e3a-e062ddb8179f",
+      "name": "Needs Human?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Route Update').first().json.message.chat.id }}",
+        "text": "Thanks for your message! I've passed your question to our front desk team, and someone will reply to you shortly. 🙏",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1696,
+        576
+      ],
+      "id": "f90d81c9-b966-4874-a769-a0555e34feff",
+      "name": "Notify Guest",
+      "webhookId": "1e0f3850-2bd5-41ac-ba2a-81b20a4bc09f"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_STAFF_CHAT_ID",
+        "text": "=⚠️ Guest needs a human Guest: {{ $('Find Guest').first().json.full_name }} Message: {{ $('Route Update').first().json.message.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1920,
+        576
+      ],
+      "id": "0f1269d1-962e-4c97-902e-64b70f27d52b",
+      "name": "Alert Staff",
+      "webhookId": "8ed66b2a-6258-4e3a-8a1c-f42256af5e96"
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "guest_id",
+              "fieldValue": "={{ $('Find Guest').first().json.id }}"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "outbound"
+            },
+            {
+              "fieldId": "channel",
+              "fieldValue": "telegram"
+            },
+            {
+              "fieldId": "handled_by",
+              "fieldValue": "human"
+            },
+            {
+              "fieldId": "body",
+              "fieldValue": "=Escalated: {{ $('Route Update').first().json.message.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        576
+      ],
+      "id": "af86b8f6-d0ad-4bbf-ac8d-ff25995b4885",
+      "name": "Log Escalation"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2b7ad344-8e2d-42b3-8718-d441c4430060",
+              "name": "action",
+              "value": "={{ $json.callback_query.data.split(':')[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "4a83956c-cbd5-4f58-a34c-3d9772d7d83f",
+              "name": "booking_id",
+              "value": "={{ $json.callback_query.data.split(':')[1].trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "eb3f1a14-34fd-4556-a17d-b910453485da",
+              "name": "chat_id",
+              "value": "={{ $json.callback_query.message.chat.id }}",
+              "type": "string"
+            },
+            {
+              "id": "18a3edef-a327-4c24-ad62-e848cebfeaa8",
+              "name": "callback_id",
+              "value": "={{ $json.callback_query.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        768
+      ],
+      "id": "d9de8243-041c-4a6c-983a-2db9017c0634",
+      "name": "Extract Upsell"
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "queryId": "={{ $json.callback_id }}",
+        "additionalFields": {
+          "text": "Got it! 👍"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        768
+      ],
+      "id": "5a71e192-9e86-4fef-ab47-a96f3b4b6389",
+      "name": "Answer Upsell Tap",
+      "webhookId": "155a9151-34c8-4233-88b3-a129d7a8dce7"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6d1c03d8-78a3-413b-8c81-490ddeb1d327",
+              "leftValue": "={{ $('Extract Upsell').first().json.action }}",
+              "rightValue": "late",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        768
+      ],
+      "id": "81efb0e9-6175-43fc-977b-d944cbec602f",
+      "name": "Is Late?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "bookings",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Extract Upsell').first().json.booking_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "late_checkout",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        672
+      ],
+      "id": "526c16cb-d77b-4ef7-8492-9b02b915e99a",
+      "name": "Save Late Checkout"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Upsell').first().json.chat_id }}",
+        "text": "Done! Your late checkout until 1 PM is confirmed. Enjoy the extra time! 🌅",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1472,
+        672
+      ],
+      "id": "069eab5a-ecd2-4fe3-9380-2bf192ec6a7f",
+      "name": "Confirm Late",
+      "webhookId": "08fd28ed-d250-4c28-8b61-dabc2ba32f31"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Upsell').first().json.chat_id }}",
+        "text": "No problem! Checkout stays at 11 AM. Enjoy the rest of your stay! 😊",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1264,
+        800
+      ],
+      "id": "206378a0-7214-43aa-8e75-bb581cf32741",
+      "name": "Confirm Skip",
+      "webhookId": "515c9496-0dab-4e3b-9acf-e4ac5f842f33"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "guests",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Get Booking').first().json.guest_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        192
+      ],
+      "id": "45f25744-76a8-45d3-a87e-fd8ab9905143",
+      "name": "Get Guest Email"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Your door code",
+        "message": "=Hi {{ $json.full_name }}, you're all set for check-in! Your door code is: {{ $('Generate PIN').first().json.pin }} It works from 2 PM on {{ $('Get Booking').first().json.check_in }} until 11 AM on {{ $('Get Booking').first().json.check_out }}. Enter the code on the keypad and press #.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2144,
+        192
+      ],
+      "id": "37db434a-21d5-41d9-a3cc-18d6bbcbd04d",
+      "name": "Email PIN",
+      "webhookId": "02ca1840-4804-493b-8730-4380650bb5c5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Route Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Find Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Booking": {
+      "main": [
+        [
+          {
+            "node": "Save Chat ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Chat ID": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Mark Welcome Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Update": {
+      "main": [
+        [
+          {
+            "node": "Extract Button",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Find Guest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Upsell",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Tap": {
+      "main": [
+        [
+          {
+            "node": "Get Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Button": {
+      "main": [
+        [
+          {
+            "node": "Answer Tap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Booking": {
+      "main": [
+        [
+          {
+            "node": "Generate PIN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate PIN": {
+      "main": [
+        [
+          {
+            "node": "Save PIN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save PIN": {
+      "main": [
+        [
+          {
+            "node": "Send PIN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Guest": {
+      "main": [
+        [
+          {
+            "node": "Log Inbound",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Inbound": {
+      "main": [
+        [
+          {
+            "node": "Hotel Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hotel Info": {
+      "main": [
+        [
+          {
+            "node": "AI Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Reply": {
+      "main": [
+        [
+          {
+            "node": "Needs Human?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reply": {
+      "main": [
+        [
+          {
+            "node": "Log Outbound",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Human?": {
+      "main": [
+        [
+          {
+            "node": "Notify Guest",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Guest": {
+      "main": [
+        [
+          {
+            "node": "Alert Staff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Staff": {
+      "main": [
+        [
+          {
+            "node": "Log Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Upsell": {
+      "main": [
+        [
+          {
+            "node": "Answer Upsell Tap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer Upsell Tap": {
+      "main": [
+        [
+          {
+            "node": "Is Late?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Late?": {
+      "main": [
+        [
+          {
+            "node": "Save Late Checkout",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirm Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Late Checkout": {
+      "main": [
+        [
+          {
+            "node": "Confirm Late",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send PIN": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get Guest Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Guest Email": {
+      "main": [
+        [
+          {
+            "node": "Email PIN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "24b1607f-3d4c-4ef8-9db1-dcdda725a4ac",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "lu8rW4HgSyYJxP7m",
+  "tags": []
+}

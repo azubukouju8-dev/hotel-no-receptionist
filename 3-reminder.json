@@ -1,0 +1,289 @@
+{
+  "name": "3 - Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "44f93d4d-413d-4e12-b5d7-78a85b30dd9f",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "bookings",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "check_in",
+              "condition": "eq",
+              "keyValue": "={{ $now.plus({days: 1}).toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "keyName": "reminder_sent",
+              "condition": "eq",
+              "keyValue": "false"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "confirmed"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "82b5482d-f606-45a3-abf1-f55f8c095db8",
+      "name": "Get Tomorrow Bookings"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "guests",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.guest_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        0
+      ],
+      "id": "6f97a18f-b075-477f-9506-8855cc13b9a6",
+      "name": "Get Guest"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "=Hi {{ $json.full_name }}, your stay starts tomorrow! 🏨 Check-in is from 2 PM. Tap the button below when you're ready and I'll send your door code.",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "I'm ready to check in",
+                    "additionalFields": {
+                      "callback_data": "=checkin:{{ $('Get Tomorrow Bookings').item.json.id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "4ac840e0-e745-4bae-8c88-1b479de8718c",
+      "name": "Send Reminder",
+      "webhookId": "5f5f0163-6ef8-46c2-bafe-5bbd15a51423",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "bookings",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Get Tomorrow Bookings').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "reminder_sent",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "18a7975d-c645-4299-afef-c64821815247",
+      "name": "Mark Reminder Sent"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ff9e796e-10d7-448a-a4ee-d9144871f5e0",
+              "leftValue": "={{ $json.reminder_sent }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "022b8f12-a6ed-4917-af50-72011a8a86df",
+      "name": "Not Reminded Yet"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Get Guest').first().json.email }}",
+        "subject": "Your stay starts tomorrow!",
+        "message": "=Hi {{ $('Get Guest').first().json.full_name }}, your stay starts tomorrow! Check-in is from 2 PM. We couldn't reach you on Telegram, so we're writing by email. Reply to this email if you need anything.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        80
+      ],
+      "id": "f2a42157-2cfb-480e-afc3-47dbdb355743",
+      "name": "Email Reminder",
+      "webhookId": "00119546-4d5c-4ec9-8a44-b535f00727d7"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Tomorrow Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Tomorrow Bookings": {
+      "main": [
+        [
+          {
+            "node": "Not Reminded Yet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Guest": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Reminded Yet": {
+      "main": [
+        [
+          {
+            "node": "Get Guest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e0ff8eed-3b57-44f1-b541-3adce7d37592",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "udf1AA1faw6QOCcU",
+  "tags": []
+}

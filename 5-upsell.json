@@ -1,0 +1,295 @@
+{
+  "name": "5 - Upsell",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "46682b08-a9e9-4563-9f99-ee2a05f01502",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "bookings",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "check_out",
+              "condition": "eq",
+              "keyValue": "={{ $now.plus({days: 1}).toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "f72db45c-d489-4673-9685-16a5b255b055",
+      "name": "Get Checkout Tomorrow"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1754673f-57a7-4abe-9f2e-ca4b2d763cea",
+              "leftValue": "={{ $json.upsell_sent }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "7a8c0c23-8397-4846-9519-243cc4574059",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "confirmed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "24f3e8f8-4507-416d-8422-52847a250674",
+      "name": "Not Offered Yet"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "guests",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.guest_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        0
+      ],
+      "id": "5557c850-2749-47c3-ad2b-20c1f917dcab",
+      "name": "Get Guest"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "=Hi {{ $json.full_name }}! 🌅 Your stay ends tomorrow. Would you like a late checkout until 1 PM for $15?",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Yes, late checkout",
+                    "additionalFields": {
+                      "callback_data": "=late:{{ $('Not Offered Yet').first().json.id }}"
+                    }
+                  },
+                  {
+                    "text": "No thanks",
+                    "additionalFields": {
+                      "callback_data": "=skip:{{ $('Not Offered Yet').first().json.id }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "ea95c206-1cd1-4533-bc5f-d267cec0dde6",
+      "name": "Send Offer",
+      "webhookId": "fcf1d0a5-967a-4c4c-add3-45574c594524",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "bookings",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Not Offered Yet').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "upsell_sent",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "5477f744-5160-43b6-8ce6-d4f6a5868262",
+      "name": "Mark Offer Sent"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Get Guest').first().json.email }}",
+        "subject": "Late checkout available",
+        "message": "Your stay ends tomorrow. Would you like a late checkout until 1 PM for $15? Just reply to this email and we'll arrange it.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        48
+      ],
+      "id": "59fe308b-2c2b-4ea3-a423-ee46fb9d6dd9",
+      "name": "Email Offer",
+      "webhookId": "df4822f2-892c-4776-b614-082386d8248c"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Checkout Tomorrow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Checkout Tomorrow": {
+      "main": [
+        [
+          {
+            "node": "Not Offered Yet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Offered Yet": {
+      "main": [
+        [
+          {
+            "node": "Get Guest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Guest": {
+      "main": [
+        [
+          {
+            "node": "Send Offer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Offer": {
+      "main": [
+        [
+          {
+            "node": "Mark Offer Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Offer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Offer": {
+      "main": [
+        [
+          {
+            "node": "Mark Offer Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d41cda79-5ad7-4220-9a00-1ea8044fecfd",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "0nv0ZEnsQVy1qIAT",
+  "tags": []
+}

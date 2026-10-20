@@ -1,0 +1,305 @@
+{
+  "name": "4 - Checkout",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        -64
+      ],
+      "id": "0bb6af8e-de29-4adc-b24f-e1344c2bcdae",
+      "name": "Interval"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "guests",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.guest_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -64
+      ],
+      "id": "b25cde8c-d541-4543-af00-038fb9d1903d",
+      "name": "Get Guest"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "=Good morning {{ $json.full_name }}! ☀️ Check-out is by 11 AM. Please leave your key card in the room and just close the door behind you. Your door code will be switched off after you leave. Thank you for staying with us! If you enjoyed your stay, a quick review would mean a lot: www.tiktok.com/@uju_14",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        896,
+        -64
+      ],
+      "id": "37070b67-6e11-420f-b14a-2df5dbf72ce5",
+      "name": "Send Checkout",
+      "webhookId": "a65188e8-8200-46bd-8114-8854e7677349",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "door_codes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "booking_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Still Active').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "active",
+              "fieldValue": "false"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        -64
+      ],
+      "id": "6d36131a-f9fc-4a4e-9404-06a2e5e88099",
+      "name": "Deactivate PIN",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "bookings",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Still Active').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "checked_out"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        -64
+      ],
+      "id": "15cd5084-a0e2-472d-936f-165571e9632b",
+      "name": "Mark Checked Out"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "bookings",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "check_out",
+              "condition": "eq",
+              "keyValue": "={{ $now.toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -64
+      ],
+      "id": "05b192c4-e4a2-4b97-bfca-cfc478f77264",
+      "name": "Get Checkout Bookings"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Get Guest').first().json.email }}",
+        "subject": "Check-out today",
+        "message": "Good morning! Check-out is by 11 AM. Please leave your key card in the room and close the door behind you. Thank you for staying with us!",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        16
+      ],
+      "id": "e33589c0-9c94-429d-9f5b-a3c4da1d3a64",
+      "name": "Email Checkout",
+      "webhookId": "4df7d932-4e7f-46a3-9430-070f8153e9b8"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d8a809e8-84f1-485e-9349-d1caaa96e4e1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "confirmed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        -64
+      ],
+      "id": "fda7a085-fc92-4243-b38e-55c86e1c8684",
+      "name": "Still Active"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Interval": {
+      "main": [
+        [
+          {
+            "node": "Get Checkout Bookings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Guest": {
+      "main": [
+        [
+          {
+            "node": "Send Checkout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Checkout": {
+      "main": [
+        [
+          {
+            "node": "Deactivate PIN",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Checkout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deactivate PIN": {
+      "main": [
+        [
+          {
+            "node": "Mark Checked Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Checkout Bookings": {
+      "main": [
+        [
+          {
+            "node": "Still Active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Checkout": {
+      "main": [
+        [
+          {
+            "node": "Deactivate PIN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still Active": {
+      "main": [
+        [
+          {
+            "node": "Get Guest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "aed6b192-54ec-4968-9e7c-3e479f30cabe",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "IMaKkbI8T7Vem9St",
+  "tags": []
+}

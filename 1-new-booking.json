@@ -1,0 +1,264 @@
+{
+  "name": "1 - New Booking",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Booking Form",
+        "formDescription": "Book your stay",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Full Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "phone"
+            },
+            {
+              "fieldLabel": "Room",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "101"
+                  },
+                  {
+                    "option": "202"
+                  },
+                  {
+                    "option": "203"
+                  },
+                  {
+                    "option": "201"
+                  },
+                  {
+                    "option": "102"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Check-in",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Check-out",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Channel",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "telegram"
+                  },
+                  {
+                    "option": "sms"
+                  },
+                  {
+                    "option": "email"
+                  },
+                  {
+                    "option": "whatsapp"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        -16
+      ],
+      "id": "b4dcd44e-5380-4852-9373-0ebdc72d7af3",
+      "name": "Booking Form",
+      "webhookId": "0896de34-85ec-4c56-ad1a-83609e3d57d0"
+    },
+    {
+      "parameters": {
+        "tableId": "guests",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "full_name",
+              "fieldValue": "={{ $json['Full Name'] }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.Email }}"
+            },
+            {
+              "fieldId": "phone",
+              "fieldValue": "={{ $json.phone }}"
+            },
+            {
+              "fieldId": "preferred_channel",
+              "fieldValue": "={{ $json.Channel.toString().trim().toLowerCase() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -16
+      ],
+      "id": "ad932cc2-cc4e-4533-918d-42a586983a49",
+      "name": "Create Guest"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "rooms",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "room_number",
+              "condition": "eq",
+              "keyValue": "={{ $('Booking Form').item.json['Room'].toString().trim() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -16
+      ],
+      "id": "853e699d-539e-4aa4-9afd-72cd9befb617",
+      "name": "Find Room"
+    },
+    {
+      "parameters": {
+        "tableId": "bookings",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "guest_id",
+              "fieldValue": "={{ $('Create Guest').item.json.id }}"
+            },
+            {
+              "fieldId": "room_id",
+              "fieldValue": "={{ $('Find Room').item.json.id }}"
+            },
+            {
+              "fieldId": "check_in",
+              "fieldValue": "={{ $('Booking Form').item.json['Check-in'] }}"
+            },
+            {
+              "fieldId": "check_out",
+              "fieldValue": "={{ $('Booking Form').item.json['Check-out'] }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -16
+      ],
+      "id": "54e06036-5c75-4015-aec0-0905c7d28719",
+      "name": "Create Booking"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5e63cd4d-ff96-481f-8504-1253aa3a837f",
+              "name": "start_link",
+              "value": "=https://t.me/myboutiquehotel_bot?start={{ $('Create Booking').item.json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        896,
+        -16
+      ],
+      "id": "dee62cb4-bba6-4fb2-9b8b-eaa69b227dd0",
+      "name": "Build Start Link"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Booking Form": {
+      "main": [
+        [
+          {
+            "node": "Create Guest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Guest": {
+      "main": [
+        [
+          {
+            "node": "Find Room",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Room": {
+      "main": [
+        [
+          {
+            "node": "Create Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Booking": {
+      "main": [
+        [
+          {
+            "node": "Build Start Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c3652b2e-1457-4273-922b-a9d76ebde5ad",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "uf37MgelPWfdPODq",
+  "tags": []
+}
