@@ -198,7 +198,7 @@ group by handled_by;
 2. **Telegram:** create a bot with [@BotFather](https://t.me/BotFather) and copy its token.
 3. **Gemini:** create a free API key in Google AI Studio.
 4. **n8n:** import the five workflow files in this repo (Workflows → Import from file).
-5. **Credentials:** create these in n8n and select them in the nodes: Telegram, Supabase, Google Gemini, Gmail.
+5. **Credentials:** create these in n8n: Telegram, Supabase, Google Gemini, Gmail. The exported workflows contain no credentials, so after importing, open each node that shows a red warning and select your own credential.
 6. **Settings:**
    - Set each scheduled workflow's timezone to your own.
    - In `Build Start Link`, put your bot's username in the link.
@@ -206,7 +206,7 @@ group by handled_by;
    - Edit the `Hotel Info` node with your hotel's real facts.
 7. **Publish** the workflows.
 
-> Credentials and API keys are never included in the exported workflows. Never commit them to Git.
+> Credentials and API keys are never included in the exported workflows. Never commit your own keys or tokens to Git.
 
 ---
 
