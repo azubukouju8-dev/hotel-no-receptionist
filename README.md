@@ -197,7 +197,7 @@ group by handled_by;
 1. **Supabase:** create a project and run the SQL above.
 2. **Telegram:** create a bot with [@BotFather](https://t.me/BotFather) and copy its token.
 3. **Gemini:** create a free API key in Google AI Studio.
-4. **n8n:** import the five workflow files from the `workflows/` folder.
+4. **n8n:** import the five workflow files in this repo (Workflows → Import from file).
 5. **Credentials:** create these in n8n and select them in the nodes: Telegram, Supabase, Google Gemini, Gmail.
 6. **Settings:**
    - Set each scheduled workflow's timezone to your own.
@@ -245,6 +245,6 @@ group by handled_by;
 
 ## About
 
-Built by **Azubuko Kiara Uju** as part of the **30 Days, 30 Workflows** challenge. Follow along on TikTok: **[@your-handle]**.
+Built by **Azubuko Kiara Uju** as part of the **30 Days, 30 Workflows** challenge. Follow along on TikTok: **[@uju=14]**.
 
-Open to work in AI automation. Reach me at **azubukouju8@gmail.com** or on **[LinkedIn]**.
+Open to work in AI automation. Reach me at **azubukouju8@gmail.com** or on **[@kiara uju Azubuko]**.
